@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Time</title>
+<style>
+  :root{
+    --bg:#0b0d12; --card:#141821; --accent:#5ee3c9; --accent2:#ff8a5b;
+    --text:#eef1f6; --sub:#8a93a6; --danger:#ff5b6e; --line:#22283a;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,Roboto,Segoe UI,Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  header{
+    padding:18px 20px 8px; flex-shrink:0;
+  }
+  header h1{margin:0; font-size:20px; font-weight:700; letter-spacing:.5px;}
+  main{flex:1; overflow-y:auto; padding:12px 16px 90px;}
+  .screen{display:none;}
+  .screen.active{display:block; animation:fade .2s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+
+  /* CLOCK */
+  .clock-main{text-align:center; padding:40px 0 20px;}
+  .clock-main .time{font-size:64px; font-weight:700; letter-spacing:1px; font-variant-numeric:tabular-nums;}
+  .clock-main .date{color:var(--sub); font-size:15px; margin-top:6px;}
+  .toggle-row{display:flex; justify-content:center; gap:8px; margin-top:16px;}
+  .pill{background:var(--card); border:1px solid var(--line); color:var(--sub); padding:6px 14px; border-radius:20px; font-size:13px;}
+  .pill.active{background:var(--accent); color:#06110e; border-color:var(--accent); font-weight:600;}
+  .tz-list{margin-top:24px; display:flex; flex-direction:column; gap:10px;}
+  .tz-item{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; display:flex; justify-content:space-between; align-items:center;}
+  .tz-item .city{font-size:14px; color:var(--sub);}
+  .tz-item .t{font-size:22px; font-weight:600; font-variant-numeric:tabular-nums;}
+  .tz-item .del{color:var(--danger); font-size:13px; margin-left:10px;}
+  .add-row{display:flex; gap:8px; margin-top:14px;}
+  select,input{background:var(--card); color:var(--text); border:1px solid var(--line); border-radius:10px; padding:10px; font-size:14px; flex:1;}
+
+  /* Common card/list */
+  .card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:12px;}
+  .row{display:flex; justify-content:space-between; align-items:center;}
+  .btn{background:var(--accent); color:#06110e; border:none; border-radius:12px; padding:12px 18px; font-size:15px; font-weight:700;}
+  .btn.secondary{background:transparent; color:var(--text); border:1px solid var(--line);}
+  .btn.danger{background:var(--danger); color:#fff;}
+  .btn:active{transform:scale(.97);}
+  .btn-row{display:flex; gap:10px; margin-top:14px;}
+  .btn-row .btn{flex:1;}
+
+  /* TIMER */
+  .timer-display{text-align:center; font-size:56px; font-weight:700; font-variant-numeric:tabular-nums; padding:30px 0 10px;}
+  .picker-row{display:flex; gap:8px; justify-content:center; margin:10px 0;}
+  .picker-row input{width:70px; text-align:center; font-size:18px;}
+  .saved-timers{margin-top:18px;}
+  .saved-item{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line);}
+  .saved-item:last-child{border-bottom:none;}
+
+  /* STOPWATCH */
+  .sw-display{text-align:center; font-size:56px; font-weight:700; font-variant-numeric:tabular-nums; padding:30px 0 10px;}
+  .lap-list{margin-top:16px; max-height:260px; overflow-y:auto;}
+  .lap-item{display:flex; justify-content:space-between; padding:8px 4px; border-bottom:1px solid var(--line); font-size:14px; color:var(--sub);}
+  .lap-item .n{color:var(--text); font-weight:600;}
+
+  /* ALARMS */
+  .alarm-item{display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--line);}
+  .alarm-item:last-child{border-bottom:none;}
+  .alarm-time{font-size:26px; font-weight:700;}
+  .alarm-label{color:var(--sub); font-size:13px;}
+  .switch{width:44px; height:26px; background:var(--line); border-radius:14px; position:relative; flex-shrink:0;}
+  .switch.on{background:var(--accent);}
+  .switch::after{content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; background:#fff; border-radius:50%; transition:.2s;}
+  .switch.on::after{left:21px;}
+
+  /* TRACKER */
+  .track-bars{display:flex; align-items:flex-end; gap:8px; height:140px; margin:20px 0 10px; padding:0 4px;}
+  .bar-col{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;}
+  .bar{width:100%; background:linear-gradient(180deg,var(--accent),var(--accent2)); border-radius:6px 6px 0 0; min-height:4px;}
+  .bar-label{font-size:11px; color:var(--sub); margin-top:6px;}
+  .log-item{display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); font-size:14px;}
+  .log-item:last-child{border-bottom:none;}
+  .log-item .mins{color:var(--accent); font-weight:600;}
+
+  /* NAV */
+  nav{
+    position:fixed; bottom:0; left:0; right:0; background:var(--card);
+    border-top:1px solid var(--line); display:flex; padding:8px 4px calc(8px + env(safe-area-inset-bottom));
+  }
+  nav button{
+    flex:1; background:none; border:none; color:var(--sub); font-size:11px;
+    display:flex; flex-direction:column; align-items:center; gap:4px; padding:6px 0;
+  }
+  nav button.active{color:var(--accent);}
+  nav .ic{font-size:20px;}
+  label.sub{display:block; color:var(--sub); font-size:12px; margin-bottom:4px;}
+</style>
+</head>
+<body>
+
+<header><h1 id="header-title">Clock</h1></header>
+<main>
+
+  <!-- CLOCK -->
+  <section class="screen active" id="screen-clock">
+    <div class="clock-main">
+      <div class="time" id="clock-time">--:--:--</div>
+      <div class="date" id="clock-date">--</div>
+      <div class="toggle-row">
+        <div class="pill active" id="fmt-12" onclick="setFormat(true)">12h</div>
+        <div class="pill" id="fmt-24" onclick="setFormat(false)">24h</div>
+      </div>
+    </div>
+    <div class="add-row">
+      <select id="tz-select"></select>
+      <button class="btn secondary" onclick="addTimezone()">+ Add</button>
+    </div>
+    <div class="tz-list" id="tz-list"></div>
+  </section>
+
+  <!-- TIMER -->
+  <section class="screen" id="screen-timer">
+    <div class="card">
+      <div class="timer-display" id="timer-display">00:00:00</div>
+      <div class="picker-row">
+        <div><label class="sub">Hours</label><input type="number" id="t-h" min="0" value="0"></div>
+        <div><label class="sub">Min</label><input type="number" id="t-m" min="0" max="59" value="5"></div>
+        <div><label class="sub">Sec</label><input type="number" id="t-s" min="0" max="59" value="0"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="timer-startpause" onclick="timerStartPause()">Start</button>
+        <button class="btn secondary" onclick="timerReset()">Reset</button>
+      </div>
+      <div class="btn-row">
+        <input type="text" id="timer-name" placeholder="Name this timer (optional)">
+        <button class="btn secondary" onclick="saveTimerPreset()">Save</button>
+      </div>
+    </div>
+    <div class="card saved-timers" id="saved-timers"><label class="sub">Saved timers</label></div>
+  </section>
+
+  <!-- STOPWATCH -->
+  <section class="screen" id="screen-stopwatch">
+    <div class="card">
+      <div class="sw-display" id="sw-display">00:00.00</div>
+      <div class="btn-row">
+        <button class="btn" id="sw-startstop" onclick="swStartStop()">Start</button>
+        <button class="btn secondary" onclick="swLapReset()" id="sw-lapreset">Lap</button>
+      </div>
+      <div class="lap-list" id="lap-list"></div>
+    </div>
+  </section>
+
+  <!-- ALARMS -->
+  <section class="screen" id="screen-alarms">
+    <div class="card">
+      <div class="add-row">
+        <input type="time" id="alarm-time-input">
+        <input type="text" id="alarm-label-input" placeholder="Label">
+      </div>
+      <button class="btn" style="margin-top:10px; width:100%" onclick="addAlarm()">Add alarm</button>
+    </div>
+    <div class="card" id="alarm-list"></div>
+  </section>
+
+  <!-- TRACKER -->
+  <section class="screen" id="screen-tracker">
+    <div class="card">
+      <label class="sub">Last 7 days (minutes)</label>
+      <div class="track-bars" id="track-bars"></div>
+    </div>
+    <div class="card">
+      <div class="add-row">
+        <input type="text" id="track-task" placeholder="What did you work on?">
+        <input type="number" id="track-mins" placeholder="Mins" style="max-width:80px;">
+      </div>
+      <button class="btn" style="margin-top:10px; width:100%" onclick="addLog()">Log time</button>
+    </div>
+    <div class="card" id="log-list"><label class="sub">Recent entries</label></div>
+  </section>
+
+</main>
+
+<nav>
+  <button class="active" data-screen="clock" onclick="switchScreen('clock')"><span class="ic">🕐</span>Clock</button>
+  <button data-screen="timer" onclick="switchScreen('timer')"><span class="ic">⏲</span>Timer</button>
+  <button data-screen="stopwatch" onclick="switchScreen('stopwatch')"><span class="ic">⏱</span>Stopwatch</button>
+  <button data-screen="alarms" onclick="switchScreen('alarms')"><span class="ic">⏰</span>Alarms</button>
+  <button data-screen="tracker" onclick="switchScreen('tracker')"><span class="ic">📊</span>Tracker</button>
+</nav>
+
+<audio id="beep-sound" preload="auto">
+  <source src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQ==" type="audio/wav">
+</audio>
+
+<script>
+/* ---------- NAV ---------- */
+const titles = {clock:'Clock', timer:'Timer', stopwatch:'Stopwatch', alarms:'Alarms', tracker:'Tracker'};
+function switchScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.screen===name));
+  document.getElementById('header-title').textContent = titles[name];
+}
+
+/* ---------- STORAGE ---------- */
+const store = {
+  get(k, d){ try{ return JSON.parse(localStorage.getItem(k)) ?? d; }catch(e){ return d; } },
+  set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
+};
+
+/* ---------- CLOCK ---------- */
+let use12h = store.get('fmt12', true);
+function setFormat(is12){
+  use12h = is12; store.set('fmt12', is12);
+  document.getElementById('fmt-12').classList.toggle('active', is12);
+  document.getElementById('fmt-24').classList.toggle('active', !is12);
+}
+setFormat(use12h);
+
+const commonTZ = ["UTC","America/New_York","America/Los_Angeles","America/Chicago","Europe/London","Europe/Paris","Africa/Lagos","Africa/Johannesburg","Asia/Dubai","Asia/Kolkata","Asia/Shanghai","Asia/Tokyo","Australia/Sydney"];
+const tzSelect = document.getElementById('tz-select');
+commonTZ.forEach(tz=>{ const o=document.createElement('option'); o.value=tz; o.textContent=tz.replace('_',' '); tzSelect.appendChild(o); });
+
+let savedTZ = store.get('savedTZ', []);
+function addTimezone(){
+  const tz = tzSelect.value;
+  if(!savedTZ.includes(tz)){ savedTZ.push(tz); store.set('savedTZ', savedTZ); renderTZList(); }
+}
+function removeTimezone(tz){ savedTZ = savedTZ.filter(t=>t!==tz); store.set('savedTZ', savedTZ); renderTZList(); }
+function renderTZList(){
+  const list = document.getElementById('tz-list');
+  list.innerHTML = savedTZ.map(tz=>`
+    <div class="tz-item">
+      <div><div class="city">${tz.replace('_',' ')}</div><div class="t" data-tz="${tz}">--:--</div></div>
+      <div class="del" onclick="removeTimezone('${tz}')">Remove</div>
+    </div>`).join('');
+}
+renderTZList();
+
+function tickClock(){
+  const now = new Date();
+  document.getElementById('clock-time').textContent = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:use12h});
+  document.getElementById('clock-date').textContent = now.toLocaleDateString([], {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  document.querySelectorAll('#tz-list [data-tz]').forEach(el=>{
+    const tz = el.dataset.tz;
+    el.textContent = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:use12h, timeZone:tz});
+  });
+}
+setInterval(tickClock, 1000); tickClock();
+
+/* ---------- TIMER ---------- */
+let timerTotal=0, timerRemaining=0, timerRunning=false, timerInterval=null;
+function fmtHMS(sec){
+  sec = Math.max(0, Math.round(sec));
+  const h=String(Math.floor(sec/3600)).padStart(2,'0');
+  const m=String(Math.floor((sec%3600)/60)).padStart(2,'0');
+  const s=String(sec%60).padStart(2,'0');
+  return `${h}:${m}:${s}`;
+}
+function timerStartPause(){
+  const btn = document.getElementById('timer-startpause');
+  if(!timerRunning){
+    if(timerRemaining<=0){
+      const h=+document.getElementById('t-h').value||0, m=+document.getElementById('t-m').value||0, s=+document.getElementById('t-s').value||0;
+      timerRemaining = h*3600+m*60+s;
+      if(timerRemaining<=0) return;
+    }
+    timerRunning = true; btn.textContent='Pause';
+    timerInterval = setInterval(()=>{
+      timerRemaining--;
+      document.getElementById('timer-display').textContent = fmtHMS(timerRemaining);
+      if(timerRemaining<=0){
+        clearInterval(timerInterval); timerRunning=false; btn.textContent='Start';
+        playBeep(); if(navigator.vibrate) navigator.vibrate([300,100,300]);
+      }
+    }, 1000);
+  } else {
+    timerRunning=false; clearInterval(timerInterval); btn.textContent='Start';
+  }
+}
+function timerReset(){
+  timerRunning=false; clearInterval(timerInterval); timerRemaining=0;
+  document.getElementById('timer-display').textContent='00:00:00';
+  document.getElementById('timer-startpause').textContent='Start';
+}
+function playBeep(){
+  try{ const a = document.getElementById('beep-sound'); a.currentTime=0; a.play(); }catch(e){}
+}
+let timerPresets = store.get('timerPresets', []);
+function saveTimerPreset(){
+  const h=+document.getElementById('t-h').value||0, m=+document.getElementById('t-m').value||0, s=+document.getElementById('t-s').value||0;
+  const name = document.getElementById('timer-name').value.trim() || `${h}h ${m}m ${s}s`;
+  timerPresets.push({name, h, m, s}); store.set('timerPresets', timerPresets);
+  document.getElementById('timer-name').value='';
+  renderPresets();
+}
+function loadPreset(i){
+  const p = timerPresets[i];
+  document.getElementById('t-h').value=p.h; document.getElementById('t-m').value=p.m; document.getElementById('t-s').value=p.s;
+  timerReset();
+}
+function deletePreset(i){ timerPresets.splice(i,1); store.set('timerPresets', timerPresets); renderPresets(); }
+function renderPresets(){
+  const el = document.getElementById('saved-timers');
+  el.innerHTML = '<label class="sub">Saved timers</label>' + timerPresets.map((p,i)=>`
+    <div class="saved-item">
+      <span onclick="loadPreset(${i})">${p.name} — ${String(p.h).padStart(2,'0')}:${String(p.m).padStart(2,'0')}:${String(p.s).padStart(2,'0')}</span>
+      <span class="del" style="color:var(--danger)" onclick="deletePreset(${i})">✕</span>
+    </div>`).join('');
+}
+renderPresets();
+
+/* ---------- STOPWATCH ---------- */
+let swElapsed=0, swRunning=false, swStart=0, swInterval=null, laps=[];
+function fmtMS(ms){
+  const totalMs = Math.round(ms);
+  const m = String(Math.floor(totalMs/60000)).padStart(2,'0');
+  const s = String(Math.floor((totalMs%60000)/1000)).padStart(2,'0');
+  const cs = String(Math.floor((totalMs%1000)/10)).padStart(2,'0');
+  return `${m}:${s}.${cs}`;
+}
+function swStartStop(){
+  const btn = document.getElementById('sw-startstop');
+  if(!swRunning){
+    swRunning=true; swStart=Date.now()-swElapsed; btn.textContent='Stop';
+    document.getElementById('sw-lapreset').textContent='Lap';
+    swInterval = setInterval(()=>{
+      swElapsed = Date.now()-swStart;
+      document.getElementById('sw-display').textContent = fmtMS(swElapsed);
+    }, 30);
+  } else {
+    swRunning=false; clearInterval(swInterval); btn.textContent='Start';
+    document.getElementById('sw-lapreset').textContent='Reset';
+  }
+}
+function swLapReset(){
+  if(swRunning){
+    laps.push(swElapsed); renderLaps();
+  } else {
+    swElapsed=0; laps=[]; document.getElementById('sw-display').textContent='00:00.00'; renderLaps();
+  }
+}
+function renderLaps(){
+  document.getElementById('lap-list').innerHTML = laps.map((l,i)=>`
+    <div class="lap-item"><span class="n">Lap ${i+1}</span><span>${fmtMS(l)}</span></div>`).reverse().join('');
+}
+
+/* ---------- ALARMS ---------- */
+let alarms = store.get('alarms', []);
+function addAlarm(){
+  const time = document.getElementById('alarm-time-input').value;
+  const label = document.getElementById('alarm-label-input').value.trim() || 'Alarm';
+  if(!time) return;
+  alarms.push({time, label, on:true, id:Date.now()});
+  store.set('alarms', alarms);
+  document.getElementById('alarm-label-input').value='';
+  renderAlarms();
+}
+function toggleAlarm(id){
+  alarms = alarms.map(a=> a.id===id ? {...a, on:!a.on} : a);
+  store.set('alarms', alarms); renderAlarms();
+}
+function deleteAlarm(id){
+  alarms = alarms.filter(a=>a.id!==id);
+  store.set('alarms', alarms); renderAlarms();
+}
+function renderAlarms(){
+  const el = document.getElementById('alarm-list');
+  if(alarms.length===0){ el.innerHTML = '<label class="sub">No alarms yet</label>'; return; }
+  el.innerHTML = alarms.map(a=>`
+    <div class="alarm-item">
+      <div><div class="alarm-time">${a.time}</div><div class="alarm-label">${a.label}</div></div>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div class="switch ${a.on?'on':''}" onclick="toggleAlarm(${a.id})"></div>
+        <span class="del" style="color:var(--danger); font-size:13px;" onclick="deleteAlarm(${a.id})">✕</span>
+      </div>
+    </div>`).join('');
+}
+renderAlarms();
+let lastAlarmCheck = '';
+setInterval(()=>{
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0'), mm = String(now.getMinutes()).padStart(2,'0');
+  const cur = `${hh}:${mm}`;
+  if(cur !== lastAlarmCheck){
+    lastAlarmCheck = cur;
+    alarms.filter(a=>a.on && a.time===cur).forEach(()=>{
+      playBeep(); if(navigator.vibrate) navigator.vibrate([400,150,400,150,400]);
+    });
+  }
+}, 1000);
+
+/* ---------- TRACKER ---------- */
+let logs = store.get('logs', []);
+function addLog(){
+  const task = document.getElementById('track-task').value.trim() || 'Untitled';
+  const mins = +document.getElementById('track-mins').value || 0;
+  if(mins<=0) return;
+  logs.unshift({task, mins, date: new Date().toISOString()});
+  store.set('logs', logs);
+  document.getElementById('track-task').value=''; document.getElementById('track-mins').value='';
+  renderTracker();
+}
+function renderTracker(){
+  const days = [];
+  for(let i=6;i>=0;i--){
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const key = d.toDateString();
+    const total = logs.filter(l=> new Date(l.date).toDateString()===key).reduce((s,l)=>s+l.mins,0);
+    days.push({label: d.toLocaleDateString([], {weekday:'short'}), total});
+  }
+  const max = Math.max(1, ...days.map(d=>d.total));
+  document.getElementById('track-bars').innerHTML = days.map(d=>`
+    <div class="bar-col">
+      <div class="bar" style="height:${Math.max(4,(d.total/max)*120)}px"></div>
+      <div class="bar-label">${d.label}</div>
+    </div>`).join('');
+  document.getElementById('log-list').innerHTML = '<label class="sub">Recent entries</label>' + logs.slice(0,20).map(l=>`
+    <div class="log-item"><span>${l.task}</span><span class="mins">${l.mins}m</span></div>`).join('');
+}
+renderTracker();
+</script>
+</body>
+</html>

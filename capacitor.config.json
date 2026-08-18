@@ -1,0 +1,6 @@
+{
+  "appId": "com.genz.timeapp",
+  "appName": "Time",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
